@@ -27,8 +27,10 @@ The code produces a summary output that is subsequently fed into the live tool.
 -  lubridate 
 -  dplyr
 -  tidyr
--  sparklyr
 -  CUSUMdesign 
+-  httr2
+-  arrow
+-  glue
 -  AzureAuth
 -  AzureKeyVault
 -  AzureStor
