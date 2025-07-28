@@ -517,7 +517,7 @@ mutate(Email_Trust=1)
 # DBTITLE 1,Final Output: Add in Email Notification
 Final_Table <- Final_Table_without_email_notification %>%
 left_join(Signal_Compare_New_Signals, by = c("Site_Code","Date_of_signal","Site_Name"))%>%
-mutate(Email_Trust = case_when(Email_Trust == 1 ~ 1,
+mutate(Email_Trust = case_when(Email_Trust == 1 & Reset_Flag != "Reset" ~ 1,
 TRUE ~ 0))
 
 # COMMAND ----------
@@ -535,6 +535,7 @@ separate(ID, into = c("Site_Code","Date_of_signal","Level_of_Signal_Old"), sep =
 # DBTITLE 1,Check: Compute Signals that are now lower - Part 2
 Signal_Compare_Lower_Signals2 <- Signal_Compare_Lower_Signals %>%
 left_join(Final_Table_without_email_notification, by = c("Site_Code","Date_of_signal"))%>%
+filter(Reset_Flag != "Reset") %>%
 mutate(Level_of_Signal_Old = as.numeric(Level_of_Signal_Old),
        Level_of_Signal_New = as.numeric(Level_of_Signal)) %>%
 select(Site_Code,Date_of_signal,Level_of_Signal_Old,Level_of_Signal_New) %>%
