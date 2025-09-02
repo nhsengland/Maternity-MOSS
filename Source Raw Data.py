@@ -56,18 +56,20 @@ PDS_df_filtered.createOrReplaceTempView("PDS_raw") # convert to SQL temp view
 
 # COMMAND ----------
 
-# DBTITLE 1,Temporary fix to restore PDS to previous version of Deceased_Type_Flag
+# DBTITLE 1,Override Deceased Type Flag and exclude Child Health Codes
 # MAGIC %sql
 # MAGIC CREATE OR REPLACE TEMP VIEW PDS_raw1 AS 
-# MAGIC SELECT Der_Pseudo_Nhs_Number, Der_Pseudo_Mothers_Nhs_Number, Stillbirth_Code, Dob, Dod, Num_Days_From_Dob_To_Dod, Stillbirth_Or_Livebirth,
-# MAGIC CASE WHEN Stillbirth_Code = 5 THEN 'Stillbirth'
-# MAGIC WHEN (Stillbirth_Code IN (1, 5) OR Stillbirth_Code IS NULL) AND Dob=Dod THEN NULL
-# MAGIC WHEN Num_Days_From_Dob_To_Dod BETWEEN 1 AND 28 THEN 'Neonatal'
-# MAGIC ELSE Deceased_Type_Flag END AS Deceased_Type_Flag,
-# MAGIC  Living, Actual_delivery_Ods_Code, Actual_Delivery_Place, Birth_Country_Code, Birth_Country_Name, Place_Of_Birth, Delivery_Place_Role_Name, Postcode_Of_Birth, Type_Of_Death, Birthweight, Suspectedcongenitalabnormality, Dq_Flag, Derived_Place_Of_Death_Category, UDALFileID, date_of_birth, Trust_Code,
-# MAGIC CASE WHEN Gestation_Age = 'Unknown' then 'Gestation_over37' else Gestation_Age end as Gestation_Age
-# MAGIC FROM PDS_raw
+# MAGIC SELECT Der_Pseudo_Nhs_Number, date_of_birth,Gestation_Age,Actual_delivery_Ods_Code, Postcode_Of_Birth,  Trust_Code,
 # MAGIC
+# MAGIC case when Dod is null then null -- Override Deceased Type flag where no Dod is present
+# MAGIC when Num_Days_From_Dob_To_Dod >0 and Deceased_Type_Flag = 'Stillbirth' then 'Neonatal' --Override Deceased Type flag when Dod is after Dob
+# MAGIC when Deceased_Type_Flag = 'Neonatal - Assumed' then 'Neonatal' -- Update so rest of code still works
+# MAGIC when Deceased_Type_Flag = 'Stillbirth - Assumed' then 'Stillbirth'  -- Update so rest of code still works
+# MAGIC else Deceased_Type_Flag
+# MAGIC end as Deceased_Type_Flag
+# MAGIC
+# MAGIC FROM PDS_raw
+# MAGIC where Actual_delivery_Ods_Code not in ('R0B1D','R1F46','RD1CH','REFCH','RTE86') -- Exclude Child Health Codes
 
 # COMMAND ----------
 
