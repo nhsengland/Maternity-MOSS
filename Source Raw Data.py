@@ -56,6 +56,21 @@ PDS_df_filtered.createOrReplaceTempView("PDS_raw") # convert to SQL temp view
 
 # COMMAND ----------
 
+# DBTITLE 1,Temporary fix to restore PDS to previous version of Deceased_Type_Flag
+# MAGIC %sql
+# MAGIC CREATE OR REPLACE TEMP VIEW PDS_raw1 AS 
+# MAGIC SELECT Der_Pseudo_Nhs_Number, Der_Pseudo_Mothers_Nhs_Number, Stillbirth_Code, Dob, Dod, Num_Days_From_Dob_To_Dod, Stillbirth_Or_Livebirth,
+# MAGIC CASE WHEN Stillbirth_Code = 5 THEN 'Stillbirth'
+# MAGIC WHEN (Stillbirth_Code IN (1, 5) OR Stillbirth_Code IS NULL) AND Dob=Dod THEN NULL
+# MAGIC WHEN Num_Days_From_Dob_To_Dod BETWEEN 1 AND 28 THEN 'Neonatal'
+# MAGIC ELSE Deceased_Type_Flag END AS Deceased_Type_Flag,
+# MAGIC  Living, Actual_delivery_Ods_Code, Actual_Delivery_Place, Birth_Country_Code, Birth_Country_Name, Place_Of_Birth, Delivery_Place_Role_Name, Postcode_Of_Birth, Type_Of_Death, Birthweight, Suspectedcongenitalabnormality, Dq_Flag, Derived_Place_Of_Death_Category, UDALFileID, date_of_birth, Trust_Code,
+# MAGIC CASE WHEN Gestation_Age = 'Unknown' then 'Gestation_over37' else Gestation_Age end as Gestation_Age
+# MAGIC FROM PDS_raw
+# MAGIC
+
+# COMMAND ----------
+
 # DBTITLE 1,Create List of Single Site Trusts
 # MAGIC %sql
 # MAGIC CREATE OR REPLACE TEMP VIEW Single_Site_Trusts AS 
@@ -81,7 +96,7 @@ PDS_df_filtered.createOrReplaceTempView("PDS_raw") # convert to SQL temp view
 # MAGIC                 a.Deceased_Type_Flag, a.Gestation_Age, 
 # MAGIC case when b.Site_Code is not null then b.Site_Code else a.Actual_delivery_Ods_Code end as Site_Code_Mapped_Single_Trusts,
 # MAGIC case when Postcode_Of_Birth is null then 'Missing' else Postcode_Of_Birth end as Postcode
-# MAGIC from PDS_raw a left join Single_Site_Mapping b on a.Trust_Code = b.Trust_Code -- Join to single site mapping
+# MAGIC from PDS_raw1 a left join Single_Site_Mapping b on a.Trust_Code = b.Trust_Code -- Join to single site mapping
 # MAGIC where a.Gestation_Age = 'Gestation_over37'
 # MAGIC
 
