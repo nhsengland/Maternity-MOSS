@@ -62,7 +62,7 @@ PDS_df_filtered.createOrReplaceTempView("PDS_raw") # convert to SQL temp view
 # MAGIC SELECT Der_Pseudo_Nhs_Number, date_of_birth,Gestation_Age,Actual_delivery_Ods_Code, Postcode_Of_Birth,  Trust_Code,
 # MAGIC
 # MAGIC case when Dod is null then null -- Override Deceased Type flag where no Dod is present
-# MAGIC when Num_Days_From_Dob_To_Dod >0 and Deceased_Type_Flag = 'Stillbirth' then 'Neonatal' --Override Deceased Type flag when Dod is after Dob
+# MAGIC when Num_Days_From_Dob_To_Dod between 1 and 28 and Deceased_Type_Flag = 'Stillbirth' then 'Neonatal' --Override Deceased Type flag when Dod is after Dob
 # MAGIC when Deceased_Type_Flag = 'Neonatal - Assumed' then 'Neonatal' -- Update so rest of code still works
 # MAGIC when Deceased_Type_Flag = 'Stillbirth - Assumed' then 'Stillbirth'  -- Update so rest of code still works
 # MAGIC else Deceased_Type_Flag
