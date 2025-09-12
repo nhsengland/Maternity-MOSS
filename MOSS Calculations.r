@@ -590,17 +590,29 @@ pull()
 Number_new_signals <- Signal_Compare_New_Signals %>% nrow()
 Number_lower_signals <- Signal_Compare_Lower_Signals2 %>% nrow()
 
-New_Site_Names <- if (Number_new_signals > 0) 
-{if (Number_new_signals > 1)
-{if (Number_new_signals > 2) {paste0("(",Signal_Compare_New_Signals[1,3]," and ",Signal_Compare_New_Signals[2,3]," plus others)")}
-else {paste0("(",Signal_Compare_New_Signals[1,3]," and ",Signal_Compare_New_Signals[2,3],")")} 
+New_Site_Names <- if (Number_new_signals == 0) {
+  ""
+} else {
+  sites <- Signal_Compare_New_Signals[1:Number_new_signals, 3] %>% pull()
+  site_string <- if (length(sites) == 1) {
+  sites
+  } else {
+    paste0(
+      paste(sites[-length(sites)], collapse = ", "),
+      " and ",
+      sites[length(sites)]
+    )
+  }
+  paste0(" (", site_string, ")")
 }
-else {paste0("(",Signal_Compare_New_Signals[1,3],")")} 
-}
-else {paste("")}
 
-text_to_send = case_when(Number_lower_signals ==0 ~ glue('MOSS Calculations have run successfully. The latest event date is {Latest_Date}. {Number_new_signals} new signal(s) were generated today {New_Site_Names}.'),
-                         TRUE ~ glue('MOSS Calculations have run successfully. The latest event date is {Latest_Date}. {Number_new_signals} new signal(s) were generated today. {New_Site_Names}. PLEASE NOTE that {Number_lower_signals} site(s) had a lower level of signal today.')
+text_to_send <- case_when(
+  Number_lower_signals == 0 ~ glue(
+    'MOSS Calculations have run successfully. The latest event date is {Latest_Date}. {Number_new_signals} new signal(s) were generated today{New_Site_Names}.'
+  ),
+  TRUE ~ glue(
+    'MOSS Calculations have run successfully. The latest event date is {Latest_Date}. {Number_new_signals} new signal(s) were generated today{New_Site_Names}. PLEASE NOTE that {Number_lower_signals} site(s) had a lower level of signal today.'
+  )
 )
 
 # COMMAND ----------
