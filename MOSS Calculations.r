@@ -233,7 +233,7 @@ mutate(Cusum_Period = ceiling_date(period_formatted, "month") - days(3), # Set p
              Dat == 0 ~ 0, # Remove level 1 signals where there have been no events in a month
              Cusum_Statistic >= h_L1 ~1,
              TRUE ~ 0),
-       Reset_Flag = "",
+       Reset_Flag = case_when(Level_of_Signal %in% c(1,2) ~ "Signal", TRUE ~ ""),
        Line_Part_Increment = 0,
        Line_Type = "CUSUM",
        Date_of_signal = format(period_formatted, "%B %Y"))  
@@ -336,7 +336,7 @@ CUSUM_Max_Period <- CUSUM_Output_without_reset_rows %>%
 
 Threshold_Rows <- Thresholds %>%
   pivot_longer(c("Start_Date","End_Date"), names_to = "Names", values_to = "Date")%>%
-  mutate(Date_of_signal = if_else(Date>CUSUM_Max_Period,"Ref_End","Ref"))%>%
+  mutate(Date_of_signal = if_else(Date<CUSUM_Min_Period,"Ref_End","Ref"))%>%
   mutate(Date = case_when(Date>CUSUM_Max_Period ~ CUSUM_Max_Period,
                           Date<CUSUM_Min_Period ~ CUSUM_Min_Period,
                           TRUE ~ Date), # Adjust the date so that it doesn't exceed the latest month of available events data
