@@ -522,6 +522,15 @@ TRUE ~ 0))
 
 # COMMAND ----------
 
+# DBTITLE 1,Temp remove email notifications for non-pilot trusts
+Final_Table <- Final_Table %>%
+mutate(Email_Trust = case_when(
+  ODS_Code %in% c("RGT","RXK","RA2","R0A","RJ1","RA7","RP5","RR8") ~ Email_Trust, # If a pilot trust then keep existing column
+  TRUE ~ 0) # Otherwise remove email notifiaction
+  )
+
+# COMMAND ----------
+
 # DBTITLE 1,Check: Compute Signals that are now lower - Part 1
 Signal_Compare_Lower_Signals <- Old_Signal_Summary %>%
 left_join(Signal_Summary, by = "ID") %>% 
