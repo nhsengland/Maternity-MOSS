@@ -340,8 +340,8 @@ Threshold_Rows <- Thresholds %>%
   mutate(Date = case_when(Date>CUSUM_Max_Period ~ CUSUM_Max_Period,
                           Date<CUSUM_Min_Period ~ CUSUM_Min_Period,
                           TRUE ~ Date), # Adjust the date so that it doesn't exceed the latest month of available events data
-         Level_of_Signal = case_when(Date_of_signal=="Ref_End" & Line_Type=="Level1_Threshold" ~ 1,
-                                     Date_of_signal=="Ref_End" & Line_Type=="Level2_Threshold" ~ 2,
+         Level_of_Signal = case_when(Date_of_signal=="Ref_End" & Line_Type=="Level1_Threshold" ~ 3, # converted back to 1 in dashboard
+                                     Date_of_signal=="Ref_End" & Line_Type=="Level2_Threshold" ~ 4, # converted back to 2 in dashboard
                                      TRUE ~ 0),
          Reset_Flag = case_when(Date_of_signal=="Ref_End" & Line_Type=="Level1_Threshold" ~ "Level 1 Threshold",
                                 Date_of_signal=="Ref_End" & Line_Type=="Level2_Threshold" ~ "Level 2 Threshold",
