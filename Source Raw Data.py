@@ -24,13 +24,13 @@ from pyspark.dbutils import DBUtils
 # COMMAND ----------
 
 # DBTITLE 1,Load Reference Data
-Site_Mergers_df = load_from_Analysis_Lake(SiteMergers_Path)
+Site_Mergers_df = spark.read.table(SiteMergers_Path)
 Site_Mergers_df.createOrReplaceTempView("Site_Mergers")
-
-Provider_Site_df = load_from_Analysis_Lake(Provider_Site_Path)
+ 
+Provider_Site_df = spark.read.table(Provider_Site_Path)
 Provider_Site_df.createOrReplaceTempView("Provider_Site")
 
-Postcode_Mapping_df = load_from_Analysis_Lake(Postcode_Mapping_Path)
+Postcode_Mapping_df = spark.read.table(Postcode_Mapping_Path)
 Postcode_Mapping_df.createOrReplaceTempView("Postcode_Mapping")
 
 # COMMAND ----------
@@ -41,7 +41,7 @@ Start_Date = '2025-01-01'
 # COMMAND ----------
 
 # DBTITLE 1,Load PDS Data
-PDS_df = load_from_warehouse(PDS_Path)
+PDS_df = spark.read.table(pds_data_path)
 PDS_df_with_date = (PDS_df
                         .withColumn("date_of_birth", to_date(PDS_df["Dob"],"yyyyMMdd")) #  convert date of birth to date
                         .withColumn("Trust_Code", substring(PDS_df["Actual_delivery_Ods_Code"],1,3))) #  compute trust code

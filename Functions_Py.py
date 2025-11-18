@@ -1,16 +1,4 @@
 # Databricks notebook source
-def load_from_warehouse(fileLoc):
-    path = "abfss://"+containerName+"@"+lakeName+folder+fileLoc
-    TableA = spark.read.option("header", "true") \
-                    .option("recursiveFileLookup", "True") \
-                    .parquet(path)                
-    return TableA
-
-def load_from_Analysis_Lake(fileLoc_A):
-    path = "abfss://"+containerName_A+"@"+lakeName_A+folder_A+fileLoc_A
-    TableB = spark.read.csv(path, header=True, inferSchema=True)
-    return TableB
-
 def save_to_Analysis_Lake(df, fileLoc_A):
     #Save Events Extract
     df_to_save = spark.table(df) # This takes the TEMP VIEW vw_mixed_final created using SQL and ensures that the function can read it. (I coded in SQL to create the TEMP VIEW.)
