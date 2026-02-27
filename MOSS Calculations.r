@@ -32,7 +32,7 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(AzureStor)
-install.packages("CUSUMdesign")
+remotes::install_version("CUSUMdesign", version = "1.1.5")
 library(CUSUMdesign)
 install.packages("httr2")
 library("httr2")
@@ -118,18 +118,11 @@ left_join (List_Event_Denom_refrate_Periods, by = c("year_month")) # Add Denom P
 
 # COMMAND ----------
 
-# DBTITLE 1,CUSUM: Prep Ref Rates
-#Obtain national ref rates
-National_Ref_Rates <- Data_Ref_Rate %>% 
-select(Year, Ref_Rate)
-
-# COMMAND ----------
-
 # DBTITLE 1,CUSUM: Final Prep
 #Compute dataframe to use within CUSUM calculations
 df_for_cusum <- All_Combos_with_events %>%
 left_join(Denoms_for_CUSUM, by = c("Site_Code", "denom_period" = "Year"))%>% # join to denominators table on the denom period
-left_join(National_Ref_Rates, by = c("refrate_period" = "Year"))%>% # join to ref rate table on the ref rate period
+left_join(Data_Ref_Rate, by = c("Site_Code", "refrate_period" = "Year"))%>% # join to ref rate table on the ref rate period and the site code
 mutate(Event_Year = substr(year_month,1,4),
   denominator = case_when(selected_measure == "All" ~ Monthly_Term_Births,
 TRUE ~ Monthly_Term_Live_Births)) %>% #Use live births only when measures have been set to not all 4
