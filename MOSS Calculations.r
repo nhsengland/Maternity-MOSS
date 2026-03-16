@@ -34,8 +34,10 @@ library(lubridate)
 library(AzureStor)
 remotes::install_version("CUSUMdesign", version = "1.1.5")
 library(CUSUMdesign)
-install.packages("httr2")
+install.packages(c("httr2","bizdays","timeDate"))
 library("httr2")
+library(bizdays)
+library(timeDate)
 library(arrow)
 library(glue)
 
@@ -491,27 +493,56 @@ select (ID,Site_Code,Site_Name,ODS_Code,ODS_Name)
 # COMMAND ----------
 
 # DBTITLE 1,Load in Previous Signal Summary
-Old_Signal_Summary <- storage_read_csv(cont, "/MOSSmart/MOSSmart/Final_outputs/Signal_Summary.csv", show_col_types = FALSE)
+Old_Signal_Summary <- storage_read_csv(cont, Path_Output_Signal_Summary, show_col_types = FALSE) %>%
+mutate(Date_Email = as.Date(Date_Email, format="%d/%m/%Y"))
 
 # COMMAND ----------
 
-# DBTITLE 1,Compute new signals
-Signal_Compare_New_Signals <- Signal_Summary %>%
+# DBTITLE 1,Compare signals
+Signal_Compare <- Signal_Summary %>%
 left_join(Old_Signal_Summary, by = "ID") %>% 
 rename(Site_Code_New = Site_Code.y) %>%
-filter(is.na(Site_Code_New)) %>%
-select(ID, Site_Name = Site_Name.x) %>%
-separate(ID, into = c("Site_Code","Date_of_signal","Level_of_Signal"), sep = "-") %>%
-select(-Level_of_Signal)%>%
-mutate(Email_Trust=1) 
+mutate(Email_Trust = if_else(is.na(Site_Code_New),1,0)) %>% # Add email flag for new signals
+mutate(Date_Email = if_else(is.na(Site_Code_New),Sys.Date(),Date_Email)) # Add today's date for new signals
 
 # COMMAND ----------
 
-# DBTITLE 1,Final Output: Add in Email Notification
+# DBTITLE 1,Create new signal summary
+New_Signal_Summary <- Signal_Compare %>%
+select(ID, Site_Code = Site_Code.x, Site_Name = Site_Name.x, ODS_Code = ODS_Code.x, ODS_Name = ODS_Name.x, Date_Email)
+
+# COMMAND ----------
+
+# DBTITLE 1,Format new signals
+Signal_Compare_Formatted <- Signal_Compare %>%
+select(ID, Site_Name = Site_Name.x, Email_Trust, Date_Email) %>%
+separate(ID, into = c("Site_Code","Date_of_signal","Level_of_Signal"), sep = "-") %>%
+select(-Level_of_Signal)
+
+# COMMAND ----------
+
+# DBTITLE 1,Create calendar of working days
+yrs <- (seq(as.integer(min(format(Final_Table_without_email_notification$Date, "%Y"))),
+            as.integer(max(format(Final_Table_without_email_notification$Date, "%Y")))+1))
+
+#UK (London) holidays
+uk_hols <- as.Date(holidayLONDON(yrs))
+
+create.calendar(
+  name = "UK_Working_Days",
+  holidays = uk_hols,
+  weekdays = c("saturday","sunday")
+)
+
+# COMMAND ----------
+
+# DBTITLE 1,Final Output: Add in Email Notification and date of email
 Final_Table <- Final_Table_without_email_notification %>%
-left_join(Signal_Compare_New_Signals, by = c("Site_Code","Date_of_signal","Site_Name"))%>%
+left_join(Signal_Compare_Formatted, by = c("Site_Code","Date_of_signal","Site_Name"))%>%
 mutate(Email_Trust = case_when(Email_Trust == 1 & Reset_Flag != "Reset" ~ 1,
-TRUE ~ 0))
+TRUE ~ 0),
+       Date_Email = case_when(Reset_Flag != "Reset" ~ Date_Email)) %>%
+mutate(Date_Checklist = add.bizdays(Date_Email, 8, cal = "UK_Working_Days"))
 
 # COMMAND ----------
 
@@ -542,7 +573,7 @@ filter(Level_of_Signal_New < Level_of_Signal_Old)
 # COMMAND ----------
 
 # DBTITLE 1,Save Signal Summary
-storage_write_csv(Signal_Summary, cont, file = Path_Output_Signal_Summary) # Save latest version for use next time code is run
+storage_write_csv(New_Signal_Summary, cont, file = Path_Output_Signal_Summary) # Save latest version for use next time code is run
 Daily_Path =paste0(Signal_Summary_Folder,Sys.Date(),".csv")
 storage_write_csv(Signal_Summary, cont, file = Daily_Path) # Keep a record of all daily summaries
 
@@ -579,6 +610,9 @@ Latest_Date <- Final_Table %>%
 filter(!is.na(Event_Type))%>%
 summarise(Latest_Date = max(Date))%>%
 pull()
+
+Signal_Compare_New_Signals <- Signal_Compare_Formatted %>%
+filter(Email_Trust ==1)
 
 Number_new_signals <- Signal_Compare_New_Signals %>% nrow()
 Number_lower_signals <- Signal_Compare_Lower_Signals2 %>% nrow()
