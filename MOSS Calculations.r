@@ -32,7 +32,7 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(AzureStor)
-remotes::install_version("CUSUMdesign", version = "1.1.5")
+remotes::install_version("CUSUMdesign", version = "1.1.8")
 library(CUSUMdesign)
 install.packages(c("httr2","bizdays","timeDate"))
 library("httr2")
@@ -148,10 +148,9 @@ for (i in 1:nrow(unique_sites)){ # For each Site
   # Calculate In-control and Out of Control values for each year
   Annual_IC_OC <- Data %>%
   distinct (Event_Year,Ref_Rate,denominator) %>%
-  mutate(inControlCount = round(Ref_Rate*denominator,2)) %>% #In control number of deaths per months
+  mutate(inControlCount = Ref_Rate*denominator) %>% #In control number of deaths per months
   mutate(outControlCount = 2*inControlCount) %>% # Out control number of deaths e.g. Double of reference rate
-  mutate(ref_value_unrounded = (outControlCount - inControlCount) / (log(outControlCount) - log(inControlCount)) )%>%
-  mutate(ref_value = round(ref_value_unrounded/0.01,0)*0.01 )
+  mutate(ref_value = (outControlCount - inControlCount) / (log(outControlCount) - log(inControlCount)) )
 
   #Get a list of years from the events data to loop through
   Unique_Years <- Data %>% 
@@ -159,13 +158,12 @@ for (i in 1:nrow(unique_sites)){ # For each Site
 
   #Create a table ready to populate with CUSUM inputs
   cusum_inputs <- Unique_Years %>%
-  mutate(k=0, h_L1 = 0, h_L2 = 0)
+  mutate(k=0, h_L1 = 0, h_L2 = 0, denrat = 0)
 
   #Calculate the thresholds for year separately
   for(j in 1:nrow(Unique_Years)) {
     Year <- Unique_Years[j,] %>%pull()
     ref_value <- Annual_IC_OC %>% filter(Event_Year == Year) %>% select(ref_value) %>% pull()
-    ref_value_unrounded <- Annual_IC_OC %>% filter(Event_Year == Year) %>% select(ref_value_unrounded) %>% pull()
     inControl <- Annual_IC_OC %>% filter(Event_Year == Year) %>% select(inControlCount) %>% pull()
     outControl <- Annual_IC_OC %>% filter(Event_Year == Year) %>% select(outControlCount) %>% pull()
 
@@ -173,37 +171,29 @@ for (i in 1:nrow(unique_sites)){ # For each Site
     # Calculate k and h for Level 1 Threshold
     arl = L1_ARL
  
-    t1 <- try(getH(distr=3, ref=ref_value, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel),silent = TRUE)#Assumes Poisson Distribution
-    t2 <- try(getH(distr=3, ref=round(ref_value_unrounded/0.1,0)*0.1, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel), silent = TRUE) #Assumes Poisson Distribution
-    t3 <- try(getH(distr=3, ref=round(ref_value_unrounded/0.2,0)*0.2, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel), silent = TRUE) #Assumes Poisson Distribution
-    t4 <- try(getH(distr=3, ref=round(ref_value_unrounded/0.5,0)*0.5, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel), silent = TRUE) #Assumes Poisson Distribution
-    
-    result <- if("try-error" %in% class(t1)) {if("try-error" %in% class(t2)) {
-    if("try-error" %in% class(t3)) {t4} else{t3}  }   else {t2}} else {t1}
+    result <- getH(distr=3, ref=ref_value, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel) #Assumes Poisson Distribution
   
     k = result$ref
-    h_L1 = round(result$DI, digits = 6)
+    h_L1 = result$DI
   
     ## LEVEL 2 THRESHOLD
     # Calculate h for Level 2 Threshold
     arl = L2_ARL
   
-    t1 <- try(getH(distr=3, ref=ref_value, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel),silent = TRUE)#Assumes Poisson Distribution
-    t2 <- try(getH(distr=3, ref=round(ref_value_unrounded/0.1,0)*0.1, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel), silent = TRUE) #Assumes Poisson Distribution
-    t3 <- try(getH(distr=3, ref=round(ref_value_unrounded/0.2,0)*0.2, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel), silent = TRUE) #Assumes Poisson Distribution
-    t4 <- try(getH(distr=3, ref=round(ref_value_unrounded/0.5,0)*0.5, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel), silent = TRUE) #Assumes Poisson Distribution
+    result2 <- getH(distr=3, ref=ref_value, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel) #Assumes Poisson Distribution
   
-    result2 <- if("try-error" %in% class(t1)) {if("try-error" %in% class(t2)) {
-    if("try-error" %in% class(t3)) {t4} else{t3}  }   else {t2}} else {t1}
-  
-    h_L2 = round(result2$DI, digits = 6)
+    h_L2 = result2$DI
+
+    result3 <- .Fortran('getden', ref=as.double(ref_value), temp=as.double(1), denrat=as.double(0))
+    denrat = result3$denrat
 
     cusum_inputs[j,2] = k
     cusum_inputs[j,3] = h_L1
     cusum_inputs[j,4] = h_L2
+    cusum_inputs[j,5] = denrat
   }
   
-  #Join the caclaulated thresohlds back to the event data ready for the  cusum calculations
+  #Join the calculated thresholds back to the event data ready for the cusum calculations
   Data2 <- Data %>%
   left_join(cusum_inputs, by = c("Event_Year"))
 
