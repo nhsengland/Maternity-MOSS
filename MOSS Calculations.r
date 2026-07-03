@@ -565,7 +565,7 @@ filter(Level_of_Signal_New < Level_of_Signal_Old)
 # DBTITLE 1,Save Signal Summary
 storage_write_csv(New_Signal_Summary, cont, file = Path_Output_Signal_Summary) # Save latest version for use next time code is run
 Daily_Path =paste0(Signal_Summary_Folder,Sys.Date(),".csv")
-storage_write_csv(Signal_Summary, cont, file = Daily_Path) # Keep a record of all daily summaries
+storage_write_csv(New_Signal_Summary, cont, file = Daily_Path) # Keep a record of all daily summaries
 
 # COMMAND ----------
 

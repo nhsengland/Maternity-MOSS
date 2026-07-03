@@ -4,7 +4,7 @@
 
 ### About the Project
 
-This repo contains code to reproduce analysis for the Maternity Outcomes Signal System (MOSS).
+This repo contains code to reproduce analysis for the [Maternity Outcomes Signal System (MOSS)](https://www.england.nhs.uk/publication/maternity-outcomes-signal-system-standard-operating-procedures/).
 
 The main methods used to analyse the data are: 
 
