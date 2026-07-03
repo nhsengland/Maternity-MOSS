@@ -40,6 +40,8 @@ library(bizdays)
 library(timeDate)
 library(arrow)
 library(glue)
+install.packages("janitor")
+library(janitor)
 
 # COMMAND ----------
 
@@ -171,7 +173,7 @@ for (i in 1:nrow(unique_sites)){ # For each Site
     # Calculate k and h for Level 1 Threshold
     arl = L1_ARL
  
-    result <- getH(distr=3, ref=ref_value, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel) #Assumes Poisson Distribution
+    result <- getH(distr=3, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel) #Assumes Poisson Distribution
   
     k = result$ref
     h_L1 = result$DI
@@ -180,7 +182,7 @@ for (i in 1:nrow(unique_sites)){ # For each Site
     # Calculate h for Level 2 Threshold
     arl = L2_ARL
   
-    result2 <- getH(distr=3, ref=ref_value, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel) #Assumes Poisson Distribution
+    result2 <- getH(distr=3, ICmean=inControl, OOCmean=outControl, ARL=arl, type=theModel) #Assumes Poisson Distribution
   
     h_L2 = result2$DI
 
@@ -202,6 +204,8 @@ for (i in 1:nrow(unique_sites)){ # For each Site
   
   # Add site_code to output table
   output_of_one_cusum$Site_Code <- site_code_for_loop
+  # Calculate actual CUSUM values by dividing scaled versions by denrat
+  output_of_one_cusum$Cusum_Statistic <- output_of_one_cusum$scaled_cusum / output_of_one_cusum$denrat
   
   output_table = rbind(output_table, output_of_one_cusum) #combines outputs from each run into one big table 
 }
@@ -214,9 +218,9 @@ CUSUM_Output_formatted  <- output_table %>%
 mutate(period_formatted = as.Date(paste0(period,"-01"))) %>% # convert to date format
 mutate(Cusum_Period = ceiling_date(period_formatted, "month") - days(3), # Set period to be third to last day of the month to allow for a potential reset row + threshold row
        Level_of_Signal = case_when(
-             Cusum_Statistic >= h_L2 ~ 2,
+             (greater_equal_tol(Cusum_Statistic, h_L2)) ~ 2, # Calculate signals by checking if CUSUM >= threshold allowing for tolerance
              Dat == 0 ~ 0, # Remove level 1 signals where there have been no events in a month
-             Cusum_Statistic >= h_L1 ~1,
+             (greater_equal_tol(Cusum_Statistic, h_L1)) ~ 1, # Calculate signals by checking if CUSUM >= threshold allowing for tolerance
              TRUE ~ 0),
        Reset_Flag = case_when(Level_of_Signal %in% c(1,2) ~ "Signal", TRUE ~ ""),
        Line_Part_Increment = 0,

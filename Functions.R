@@ -7,40 +7,41 @@ Cusum_Poisson_Counts_Immediate <- function(Data) { #
   h_L2 = Data$h_L2
   k = Data$k
   denrat = Data$denrat
+  scaled_dat = dat*denrat
+  scaled_h_L1 = h_L1*denrat
+  scaled_h_L2 = h_L2*denrat
+  scaled_k = k*denrat
 
-  cusum <- tibble(period = Data$year_month, Dat = dat,  Cusum_Statistic = 0, denominator = denominator, h_L1 = h_L1, h_L2 = h_L2, k=k, Ref_Rate = Ref_Rate, denrat=denrat)
-  Cusum_Statistic = 0
+# Create tibble with scaled versions of numerator, thresholds and k
+# Scaled versions necessary to ensure we tweak the CUSUM correctly where we have a denrat change and the new CUSUM is equidistant between two possible values
+  cusum <- tibble(period = Data$year_month, Dat = dat, denominator = denominator, h_L1 = h_L1, h_L2 = h_L2, k=k, Ref_Rate = Ref_Rate, denrat=denrat,
+  scaled_dat = scaled_dat, scaled_h_L1 = scaled_h_L1, scaled_h_L2 = scaled_h_L2, scaled_k = scaled_k, scaled_cusum = 0)
+  scaled_cusum = 0
 
   for(i in 1 : length(dat)){
 
   # Adjust previous CUSUM value where denrat changes to ensure it is a multiple of the new denrat
+  # This converts scaled CUSUM to unscaled, then multiplies by the new denrat to make it scaled
+  # We then round to the nearest integer, going upwards if halfway between two
     if(i > 1 && denrat[i] != denrat[i-1]) {
-    Cusum_Statistic <- round(Cusum_Statistic * denrat[i]) / denrat[i]
+      scaled_cusum <- round_half_up((scaled_cusum * denrat[i]) / denrat[i-1])
     }    
 
   # Reset CUSUM when level 2 threshold is crossed so following month starts from 0
-  # For this, we need to compare the scaled versions of the CUSUM and the threshold to avoid any rounding issues from floating point representation
-    scaled_cusum <- round(Cusum_Statistic * denrat[i])
-    scaled_h_L2 <- round(h_L2[i] * denrat[i])
-
-    if(scaled_cusum >= scaled_h_L2) {
-      Cusum_Statistic = dat[i] - k[i]
+    if (greater_equal_tol(scaled_cusum, scaled_h_L2[i])) {
+      scaled_cusum = scaled_dat[i] - scaled_k[i]
     }
     
   # Standard CUSUM calculation if there is no reset
     else {
-      Cusum_Statistic = Cusum_Statistic + dat[i] - k[i]
+      scaled_cusum = scaled_cusum + scaled_dat[i] - scaled_k[i]
     }
 
   # CUSUM cannot be below zero
-    Cusum_Statistic = max(0, Cusum_Statistic)
-  
-    cusum[i,3] = Cusum_Statistic
+    scaled_cusum = max(0, scaled_cusum)
+  # Write CUSUM value into tibble using column name
+    cusum[i, "scaled_cusum"] <- scaled_cusum
   }
-  # We only round the finished values, to avoid shifting the CUSUM or the thresholds off the 'grid' of values while the loop is running
-  cusum$Cusum_Statistic <- round(cusum$Cusum_Statistic, digits = 6)
-  cusum$h_L1 <- round(cusum$h_L1, digits = 6)
-  cusum$h_L2 <- round(cusum$h_L2, digits = 6)
   return(cusum)
 }
 
@@ -49,3 +50,12 @@ local_parquet_path <- tempfile(fileext = "temp.parquet")  # Write the data frame
 write_parquet(Table, local_parquet_path)
 storage_upload(cont, local_parquet_path, dest = file)
 }
+
+# Greater than or equal with tolerance function for comparing CUSUM to thresholds
+# .Machine$double.eps is the next highest number that can be stored after 1
+# Use square route (~1e-8) as tolerance as rounding errors can grow from multiple operations and we don't want to be too strict
+greater_equal_tol <- function(x, y, tolerance = sqrt(.Machine$double.eps)) {
+# Scale the tolerance to the magnitude of the numbers (the spacing between adjacent representable doubles gets larger as the numbers get larger)
+  tol <- tolerance * max(1, abs(x), abs(y))
+  x >= y - tol
+} 
