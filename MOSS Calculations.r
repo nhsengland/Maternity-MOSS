@@ -28,6 +28,7 @@ sas_value <-dbutils.widgets.get("secure")
 # COMMAND ----------
 
 # DBTITLE 1,Load Libraries
+remotes::install_version("rlang", version = "1.3.0")
 library(dplyr)
 library(tidyr)
 library(lubridate)
