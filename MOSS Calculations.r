@@ -28,6 +28,7 @@ sas_value <-dbutils.widgets.get("secure")
 # COMMAND ----------
 
 # DBTITLE 1,Load Libraries
+remotes::install_version("rlang", version = "1.3.0")
 library(dplyr)
 library(tidyr)
 library(lubridate)
@@ -218,9 +219,9 @@ CUSUM_Output_formatted  <- output_table %>%
 mutate(period_formatted = as.Date(paste0(period,"-01"))) %>% # convert to date format
 mutate(Cusum_Period = ceiling_date(period_formatted, "month") - days(3), # Set period to be third to last day of the month to allow for a potential reset row + threshold row
        Level_of_Signal = case_when(
-             (greater_equal_tol(Cusum_Statistic, h_L2)) ~ 2, # Calculate signals by checking if CUSUM >= threshold allowing for tolerance
+             scaled_cusum >= scaled_h_L2 ~ 2, # Calculate signals by checking if CUSUM >= threshold
              Dat == 0 ~ 0, # Remove level 1 signals where there have been no events in a month
-             (greater_equal_tol(Cusum_Statistic, h_L1)) ~ 1, # Calculate signals by checking if CUSUM >= threshold allowing for tolerance
+             scaled_cusum >= scaled_h_L1 ~ 1, # Calculate signals by checking if CUSUM >= threshold
              TRUE ~ 0),
        Reset_Flag = case_when(Level_of_Signal %in% c(1,2) ~ "Signal", TRUE ~ ""),
        Line_Part_Increment = 0,

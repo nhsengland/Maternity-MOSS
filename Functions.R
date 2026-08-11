@@ -7,10 +7,10 @@ Cusum_Poisson_Counts_Immediate <- function(Data) { #
   h_L2 = Data$h_L2
   k = Data$k
   denrat = Data$denrat
-  scaled_dat = dat*denrat
-  scaled_h_L1 = h_L1*denrat
-  scaled_h_L2 = h_L2*denrat
-  scaled_k = k*denrat
+  scaled_dat = round(dat*denrat)
+  scaled_h_L1 = round(h_L1*denrat)
+  scaled_h_L2 = round(h_L2*denrat)
+  scaled_k = round(k*denrat)
 
 # Create tibble with scaled versions of numerator, thresholds and k
 # Scaled versions necessary to ensure we tweak the CUSUM correctly where we have a denrat change and the new CUSUM is equidistant between two possible values
@@ -29,12 +29,12 @@ Cusum_Poisson_Counts_Immediate <- function(Data) { #
 
   # Reset CUSUM when level 2 threshold is crossed so following month starts from 0
     if (greater_equal_tol(scaled_cusum, scaled_h_L2[i])) {
-      scaled_cusum = scaled_dat[i] - scaled_k[i]
+      scaled_cusum = round(scaled_dat[i] - scaled_k[i])
     }
     
   # Standard CUSUM calculation if there is no reset
     else {
-      scaled_cusum = scaled_cusum + scaled_dat[i] - scaled_k[i]
+      scaled_cusum = round(scaled_cusum + scaled_dat[i] - scaled_k[i])
     }
 
   # CUSUM cannot be below zero
@@ -50,12 +50,3 @@ local_parquet_path <- tempfile(fileext = "temp.parquet")  # Write the data frame
 write_parquet(Table, local_parquet_path)
 storage_upload(cont, local_parquet_path, dest = file)
 }
-
-# Greater than or equal with tolerance function for comparing CUSUM to thresholds
-# .Machine$double.eps is the next highest number that can be stored after 1
-# Use square route (~1e-8) as tolerance as rounding errors can grow from multiple operations and we don't want to be too strict
-greater_equal_tol <- function(x, y, tolerance = sqrt(.Machine$double.eps)) {
-# Scale the tolerance to the magnitude of the numbers (the spacing between adjacent representable doubles gets larger as the numbers get larger)
-  tol <- tolerance * max(1, abs(x), abs(y))
-  x >= y - tol
-} 
