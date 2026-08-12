@@ -28,7 +28,7 @@ Cusum_Poisson_Counts_Immediate <- function(Data) { #
     }    
 
   # Reset CUSUM when level 2 threshold is crossed so following month starts from 0
-    if (greater_equal_tol(scaled_cusum, scaled_h_L2[i])) {
+    if (round(scaled_cusum) >= round(scaled_h_L2[i])) {
       scaled_cusum = round(scaled_dat[i] - scaled_k[i])
     }
     
